@@ -1,0 +1,1060 @@
+---
+title: "R Notebook - Machine Learning A - Z, Hadelin"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+  html_notebook: default
+---
+
+This is a [R Markdown](http://rmarkdown.rstudio.com) Notebook about the Machine Learning A-Z Udemy courses of Hadelin de Ponteves. So, let's go!!
+
+\newpage
+
+# Regression
+
+## Data Preprocessing
+Here, we remove and change the missing data of the table by replacing it with the mean : 
+```{r}
+dataset = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 1 - Data Preprocessing/data.csv')
+dataset$Age = ifelse(is.na(dataset$Age),
+                     ave(dataset$Age,FUN = function(x) mean(x,na.rm = TRUE)),
+                     dataset$Age)
+
+dataset$Salary = ifelse(is.na(dataset$Salary),
+                     ave(dataset$Salary,FUN = function(x) mean(x,na.rm = TRUE)),
+                     dataset$Salary)
+```
+Here the basics of R : ifelse function (easy to understand). We use a conditional test : is.na(dataset$Age), so : "if there is nothing, parcouring the column Age".
+if yes : replace by the mean
+if no let the original Age
+
+Same test for the Salary where there is also a missing value.
+
+### Encoding categorical data
+Here, we just replace string by number, it's more easy here than in Python for ML.
+```{r}
+dataset$Country = factor(dataset$Country,
+                         levels = c('France', 'Spain', 'Germany'),
+                         labels = c(1, 2, 3))
+
+dataset$Purchased = factor(dataset$Purchased,
+                         levels = c('Yes', 'No'),
+                         labels = c(1,0))
+```
+### Splitting the dataset into the Traning set and Test set
+Here, we split the dataset to do ML on it after. We use a new package : 'caTools'
+```{r}
+library(caTools)
+set.seed(123)
+split = sample.split(dataset$Purchased,SplitRatio = 0.8)
+training_set = subset(dataset,split == TRUE) 
+test_set = subset(dataset,split == FALSE) 
+```
+
+
+### Feature Scaling
+Here, we scale the data for good comparaison. It's easier than python.
+```{r}
+training_set[,2:3] = scale(training_set[,2:3])
+test_set[,2:3] = scale(test_set[,2:3])
+```
+We have to specified the column, because of the fact that in # encoding Categorical Data, we replaced names and string by number, so we have to ignore them because in R it's not a numeric value, and we need numeric value for scaling.
+
+\newpage
+## Simple Linear Regression
+Here, we are gonna use a simple linear regression machine learning model, with only one parameter for the prediction of the salary : the number of years of experience.
+
+```{r}
+setwd("/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 2 - Regression/Section 4 - Simple Linear Regression")
+# Importing the dataset
+dataset = read.csv('Salary_Data.csv')
+#dataset = dataset[, 2:3]
+
+library(caTools)
+set.seed(123)
+split = sample.split(dataset$Salary,SplitRatio = 2/3)
+training_set = subset(dataset,split == TRUE) 
+test_set = subset(dataset,split == FALSE) 
+```
+The data is ready for the simple regression. Now, let's use the regression model.
+```{r}
+regressor = lm(formula = Salary ~ YearsExperience,
+               data = training_set)
+```
+Here, Salary ~ YearsExperience means that we want that the Salary proportionnal to the YearsExperience for a simple linear model. The model is ready to predict. So, now, let's predict the results on the test data :
+```{r}
+y_predict = predict(regressor, newdata = test_set)
+```
+And now, let's visualize the difference between the real value and the training_set result based on our simple linear model with ggplot2 :
+```{r}
+library(ggplot2)
+ggplot() +
+  geom_point(aes(x = training_set$YearsExperience,
+                 y = training_set$Salary),
+             colour = 'red') +
+  geom_line(aes(x = training_set$YearsExperience,
+                y = predict(regressor, newdata = training_set)),
+            colour = 'blue') +
+  ggtitle('Salary vs Experience (Training Set)') +
+  xlab('Years of experience') +
+  ylab('Salary')
+```
+- geom_point() it's for scatter plot.
+  - aes() it's where we enter the data
+- geom_line() it's for a line
+- ggtitle() for the title
+
+Let's do the same for the predicted value with the test_set :
+
+```{r}
+ggplot() +
+  geom_point(aes(x = test_set$YearsExperience,
+                 y = test_set$Salary),
+             colour = 'red') +
+  geom_line(aes(x = training_set$YearsExperience,
+                y = predict(regressor, newdata = training_set)),
+            colour = 'blue') +
+  ggtitle('Salary vs Experience (Test Set)') +
+  xlab('Years of experience') +
+  ylab('Salary')
+```
+
+
+
+\newpage
+## Multiple Linear Regression
+First, we have to do the Data Preprocessing :
+```{r}
+dataset2 = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 2 - Regression/Section 5 - Multiple Linear Regression/50_Startups.csv')
+dataset2$State = factor(dataset2$State,
+                       levels = c('New York', 'California', 'Florida'),
+                       labels = c(1, 2, 3))
+library(caTools)
+set.seed(123)
+split = sample.split(dataset2$Profit,SplitRatio = 0.8)
+training_set = subset(dataset2,split == TRUE) 
+test_set = subset(dataset2,split == FALSE)
+# No need of scaling for linear regressions
+```
+
+Next, let's fit the multiple linear regression to the training set. To set the formula as a linear combination of all the independant variables, we can use the . technique :
+```{r}
+# regressor = lm(formula = Profit ~ R.D.Spend + Administration + Marketing.Spend . State)
+regressor = lm(formula = Profit ~ . ,
+               data = training_set)
+summary(regressor)
+```
+
+The summary function let us know statistical pieces of information about our dataset (P-values, relevance of the variables...), and we can see here that only one variable seems to be relevant (R&D), so in the end, it's a simple linear regression after the Backward Elimination :
+
+```{r}
+# regressor = lm(formula = Profit ~ R.D.Spend + Administration + Marketing.Spend . State)
+regressor = lm(formula = Profit ~ R.D.Spend ,
+               data = training_set)
+
+y_pred = predict(regressor, newdata = test_set)
+```
+
+Like in Python, it's possible to implement an autmatic Backward Elimination with that kind of code :
+
+```{r}
+# backwardElimination <- function(x, sl) {
+#     numVars = length(x)
+#     for (i in c(1:numVars)){
+#       regressor = lm(formula = Profit ~ ., data = x)
+#       maxVar = max(coef(summary(regressor))[c(2:numVars), "Pr(>|t|)"])
+#       if (maxVar > sl){
+#         j = which(coef(summary(regressor))[c(2:numVars), "Pr(>|t|)"] == maxVar)
+#         x = x[, -j]
+#       }
+#       numVars = numVars - 1
+#     }
+#     return(summary(regressor))
+#   }
+#   
+#   SL = 0.05
+#   dataset = dataset[, c(1,2,3,4,5)]
+#   backwardElimination(training_set, SL)
+```
+
+\newpage
+## Polynomial Linear Regression
+Let's do a more precise modelisation : a Polynomial Linear Regression.
+
+### Polynomial Regression Fitting
+```{r}
+dataset = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 2 - Regression/Section 6 - Polynomial Regression/Position_Salaries.csv')
+dataset = dataset[2:3]
+
+dataset$Level2 = dataset$Level^2
+dataset$Level3 = dataset$Level^3
+dataset$Level4 = dataset$Level^4
+
+poly_reg = lm(formula = Salary ~ .,
+             data = dataset)
+```
+
+And then, the visualisation (smooth version) :
+
+### Polynonial Regression Visualisation
+```{r}
+library(ggplot2)
+x_grid = seq(min(dataset$Level), max(dataset$Level),0.1)
+ggplot() +
+  geom_point(aes(x = dataset$Level,
+                 y = dataset$Salary),
+             colour = 'red') +
+  geom_line(aes(x = x_grid,
+                y = predict(poly_reg, (data.frame(Level = x_grid,
+                                                  Level2 = x_grid^2,
+                                                  Level3 = x_grid^3,
+                                                  Level4 = x_grid^4)))),
+            colour = 'blue') +
+  ggtitle('Truth or bluff') +
+  xlab('Level') +
+  ylab('Salary')
+```
+
+Now, let's predict a Salary using the years of experience :
+
+### Predicting a new result with Polynomial regression
+```{r}
+y_pred = predict(poly_reg, data.frame(Level = 6.5,
+                                       Level2 = 6.5^2,
+                                       Level3 = 6.5^3,
+                                       Level4 = 6.5^4))
+```
+
+## SVR (Support Vector Regression)
+The model produced by support-vector classification (as described above) depends only on a subset of the training data, because the cost function for building the model does not care about training points that lie beyond the margin. Analogously, the model produced by SVR depends only on a subset of the training data, because the cost function for building the model ignores any training data close to the model prediction. Here the full code for the same problem :
+
+```{r}
+# REGRESSION TEMPLATE R
+
+dataset = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 2 - Regression/Section 7 - Support Vector Regression (SVR)/Position_Salaries.csv')
+dataset = dataset[2:3]
+
+library(caTools)
+#set.seed(123)
+#split = sample.split(dataset$Purchased,SplitRatio = 0.8)
+#training_set = subset(dataset,split == TRUE) 
+#test_set = subset(dataset,split == FALSE)
+
+# SCALING 
+# training_set[,2:3] = scale(training_set[,2:3])
+# test_set[,2:3] = scale(test_set[,2:3])
+
+# FITTING THE SVR MODEL TO THE DATASET
+# install.packages('e1071')
+library(e1071)
+regressor = svm(formula = Salary ~ .,
+                data = dataset,
+                type = 'eps-regression')
+
+# PREDICTING A NEW RESULT
+y_pred = predict(regressor, data.frame(Level = 6.5))
+print(y_pred)
+# VISUALISING SMOOTHLY
+library(ggplot2)
+x_grid = seq(min(dataset$Level), max(dataset$Level),0.1)
+ggplot() +
+  geom_point(aes(x = dataset$Level,
+                 y = dataset$Salary),
+             colour = 'red') +
+  geom_line(aes(x = x_grid,
+                y = predict(regressor, newdata = data.frame(Level = x_grid))),
+            colour = 'blue') +
+  ggtitle('FALSE OR TRUE, SVR REGRESSION') +
+  xlab('x') +
+  ylab('y')
+```
+
+\newpage
+
+## Decision Tree Regression
+Let's see the same exemple with cesision tree regression. Here, the trick is the "control" condition in the library rpart, which allows us the control of the number of split : the minimum number of observations that must exist in a node in order for a split to be attempted.
+```{r}
+dataset = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 2 - Regression/Section 8 - Decision Tree Regression/Position_Salaries.csv')
+dataset = dataset[2:3]
+
+library(caTools)
+#set.seed(123)
+#split = sample.split(dataset$Purchased,SplitRatio = 0.8)
+#training_set = subset(dataset,split == TRUE) 
+#test_set = subset(dataset,split == FALSE)
+
+# SCALING 
+# training_set[,2:3] = scale(training_set[,2:3])
+# test_set[,2:3] = scale(test_set[,2:3])
+
+# FITTING THE DECISION TREE MODEL TO THE DATASET
+# install.packages('rpart')
+library(rpart)
+regressor = rpart(formula = Salary ~ .,
+                data = dataset,
+                control = rpart.control(minsplit = 1))
+
+# PREDICTING A NEW RESULT
+y_pred = predict(regressor, data.frame(Level = 6.5))
+print(y_pred)
+# VISUALISING SMOOTHLY
+library(ggplot2)
+x_grid = seq(min(dataset$Level), max(dataset$Level),0.1)
+ggplot() +
+  geom_point(aes(x = dataset$Level,
+                 y = dataset$Salary),
+             colour = 'red') +
+  geom_line(aes(x = x_grid,
+                y = predict(regressor, newdata = data.frame(Level = x_grid))),
+            colour = 'blue') +
+  ggtitle('FALSE OR TRUE, DECISION TREE REGRESSION') +
+  xlab('x') +
+  ylab('y')
+```
+
+
+
+## Random Forest Regression
+Let's see the same exemple with Random Forest regression (multiple trees) :
+```{r}
+dataset = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 2 - Regression/Section 9 - Random Forest Regression/Position_Salaries.csv')
+dataset = dataset[2:3]
+
+library(caTools)
+#set.seed(123)
+#split = sample.split(dataset$Purchased,SplitRatio = 0.8)
+#training_set = subset(dataset,split == TRUE) 
+#test_set = subset(dataset,split == FALSE)
+
+# SCALING 
+# training_set[,2:3] = scale(training_set[,2:3])
+# test_set[,2:3] = scale(test_set[,2:3])
+
+# FITTING THE RANDOM FOREST MODEL TO THE DATASET
+# install.packages('randomForest')
+library(randomForest)
+set.seed(1234)
+regressor = randomForest(x = dataset[1], # here the syntax is giving a datafram
+                         y = dataset$Salary, # here the syntax is giving a vector
+                         ntree = 500)
+
+# PREDICTING A NEW RESULT
+y_pred = predict(regressor, data.frame(Level = 6.5))
+print(y_pred)
+
+# VISUALISING SMOOTHLY
+library(ggplot2)
+x_grid = seq(min(dataset$Level), max(dataset$Level),0.01)
+ggplot() +
+  geom_point(aes(x = dataset$Level,
+                 y = dataset$Salary),
+             colour = 'red') +
+  geom_line(aes(x = x_grid,
+                y = predict(regressor, newdata = data.frame(Level = x_grid))),
+            colour = 'blue') +
+  ggtitle('FALSE OR TRUE, RANDOM FOREST REGRESSION') +
+  xlab('x') +
+  ylab('y')
+```
+
+# Classifier
+
+## Logistic Regression
+
+Now, let's fitting a Logistic Regression for classifier :
+
+```{r}
+dataset = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 3 - Classification/Section 14 - Logistic Regression/Social_Network_Ads.csv')
+dataset = dataset[,3:5]
+
+library(caTools)
+set.seed(123)
+split = sample.split(dataset$Purchased,SplitRatio = 0.75)
+training_set = subset(dataset,split == TRUE) 
+test_set = subset(dataset,split == FALSE)
+
+# SCALING 
+training_set[,1:2] = scale(training_set[,1:2])
+test_set[,1:2] = scale(test_set[,1:2])
+
+# FITTING THE REGRESSION MODEL TO THE DATASET
+# CREATE THE classifier HERE, binomial is for classifier
+classifier = glm(formula = Purchased ~ .,
+                family = binomial,
+                data = training_set)
+
+# PREDICTING A NEW RESULT
+prob_pred = predict(classifier, type = 'response', newdata = test_set[-3])
+y_pred = ifelse(prob_pred>0.5, 1, 0)
+
+# Making the Confusion Matrix
+cm = table(test_set[,3], y_pred)
+
+#  Visualising the Test set results
+library(ElemStatLearn)
+set = test_set
+X1 = seq(min(set[, 1]) - 1, max(set[, 1]) + 1, by = 0.01)
+X2 = seq(min(set[, 2]) - 1, max(set[, 2]) + 1, by = 0.01)
+grid_set = expand.grid(X1, X2) # like meshgrid
+colnames(grid_set) = c('Age', 'EstimatedSalary')
+prob_set = predict(classifier, type = 'response', newdata = grid_set)
+y_grid = ifelse(prob_set > 0.5, 1, 0)
+plot(set[, -3],
+     main = 'Logistic Regression (Test set)',
+     xlab = 'Age', ylab = 'Estimated Salary',
+     xlim = range(X1), ylim = range(X2))
+contour(X1, X2, matrix(as.numeric(y_grid), length(X1), length(X2)), add = TRUE)
+points(grid_set, pch = '.', col = ifelse(y_grid == 1, 'springgreen3', 'tomato'))
+points(set, pch = 21, bg = ifelse(set[, 3] == 1, 'green4', 'red3'))
+```
+
+
+## K-Nearest Neighbors
+
+Another kind of classifier, the k-Nearest 
+
+```{r}
+dataset = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 3 - Classification/Section 15 - K-Nearest Neighbors (K-NN)/Social_Network_Ads.csv')
+dataset = dataset[,3:5]
+
+library(caTools)
+set.seed(123)
+split = sample.split(dataset$Purchased,SplitRatio = 0.75)
+training_set = subset(dataset,split == TRUE) 
+test_set = subset(dataset,split == FALSE)
+
+# SCALING 
+training_set[,1:2] = scale(training_set[,1:2])
+test_set[,1:2] = scale(test_set[,1:2])
+
+# FITTING THE KNN MODEL TO THE DATASET and PREDICTING THE TEST SET RESULTs
+library(class)
+y_pred = knn(training_set[, -3],
+             test_set[, -3],
+             cl = training_set[, 3],
+             k = 5)
+
+# Making the Confusion Matrix
+cm = table(test_set[,3], y_pred)
+
+#  Visualising the Test set results
+library(ElemStatLearn)
+set = training_set
+X1 = seq(min(set[, 1]) - 1, max(set[, 1]) + 1, by = 0.01)
+X2 = seq(min(set[, 2]) - 1, max(set[, 2]) + 1, by = 0.01)
+grid_set = expand.grid(X1, X2)
+colnames(grid_set) = c('Age', 'EstimatedSalary')
+y_grid = knn(train = training_set[, -3], test = grid_set, cl = training_set[, 3], k = 5)
+plot(set[, -3],
+     main = 'K-NN (Training set)',
+     xlab = 'Age', ylab = 'Estimated Salary',
+     xlim = range(X1), ylim = range(X2))
+contour(X1, X2, matrix(as.numeric(y_grid), length(X1), length(X2)), add = TRUE)
+points(grid_set, pch = '.', col = ifelse(y_grid == 1, 'springgreen3', 'tomato'))
+points(set, pch = 21, bg = ifelse(set[, 3] == 1, 'green4', 'red3'))
+
+# Visualising the Test set results
+library(ElemStatLearn)
+set = test_set
+X1 = seq(min(set[, 1]) - 1, max(set[, 1]) + 1, by = 0.01)
+X2 = seq(min(set[, 2]) - 1, max(set[, 2]) + 1, by = 0.01)
+grid_set = expand.grid(X1, X2)
+colnames(grid_set) = c('Age', 'EstimatedSalary')
+y_grid = knn(train = training_set[, -3], test = grid_set, cl = training_set[, 3], k = 5)
+plot(set[, -3],
+     main = 'K-NN (Test set)',
+     xlab = 'Age', ylab = 'Estimated Salary',
+     xlim = range(X1), ylim = range(X2))
+contour(X1, X2, matrix(as.numeric(y_grid), length(X1), length(X2)), add = TRUE)
+points(grid_set, pch = '.', col = ifelse(y_grid == 1, 'springgreen3', 'tomato'))
+points(set, pch = 21, bg = ifelse(set[, 3] == 1, 'green4', 'red3'))
+```
+
+## SVM Classifier
+
+```{r}
+dataset = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 3 - Classification/Section 16 - Support Vector Machine (SVM)/Social_Network_Ads.csv')
+dataset = dataset[,3:5]
+
+library(caTools)
+set.seed(123)
+split = sample.split(dataset$Purchased,SplitRatio = 0.75)
+training_set = subset(dataset,split == TRUE) 
+test_set = subset(dataset,split == FALSE)
+
+# SCALING 
+training_set[,1:2] = scale(training_set[,1:2])
+test_set[,1:2] = scale(test_set[,1:2])
+
+# FITTING THE CLASSIFICATION MODEL TO THE DATASET
+library(e1071)
+classifier = svm(formula = Purchased ~ .,
+                data = training_set,
+                kernel= 'linear')
+
+# PREDICTING A NEW RESULT
+prob_pred = predict(classifier, type = 'response', newdata = test_set[-3])
+y_pred = ifelse(prob_pred>0.5, 1, 0)
+
+# Making the Confusion Matrix
+cm = table(test_set[,3], y_pred)
+
+#  Visualising the Test set results
+library(ElemStatLearn)
+set = test_set
+X1 = seq(min(set[, 1]) - 1, max(set[, 1]) + 1, by = 0.01)
+X2 = seq(min(set[, 2]) - 1, max(set[, 2]) + 1, by = 0.01)
+grid_set = expand.grid(X1, X2) # like meshgrid
+colnames(grid_set) = c('Age', 'EstimatedSalary')
+prob_set = predict(classifier, type = 'response', newdata = grid_set)
+y_grid = ifelse(prob_set > 0.5, 1, 0)
+plot(set[, -3],
+     main = 'SVM (Test set)',
+     xlab = 'Age', ylab = 'Estimated Salary',
+     xlim = range(X1), ylim = range(X2))
+contour(X1, X2, matrix(as.numeric(y_grid), length(X1), length(X2)), add = TRUE)
+points(grid_set, pch = '.', col = ifelse(y_grid == 1, 'springgreen3', 'tomato'))
+points(set, pch = 21, bg = ifelse(set[, 3] == 1, 'green4', 'red3'))
+```
+
+
+## Kernel Classifier
+
+```{r}
+dataset = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 3 - Classification/Section 17 - Kernel SVM/Social_Network_Ads.csv')
+dataset = dataset[,3:5]
+
+library(caTools)
+set.seed(123)
+split = sample.split(dataset$Purchased,SplitRatio = 0.75)
+training_set = subset(dataset,split == TRUE) 
+test_set = subset(dataset,split == FALSE)
+
+# SCALING 
+training_set[,1:2] = scale(training_set[,1:2])
+test_set[,1:2] = scale(test_set[,1:2])
+
+# FITTING THE CLASSIFICATION MODEL TO THE DATASET
+library(e1071)
+classifier = svm(formula = Purchased ~ .,
+                data = training_set,
+                type = 'C-classification',
+                kernel= 'radial')
+
+# PREDICTING A NEW RESULT
+prob_pred = predict(classifier, type = 'response', newdata = test_set[-3])
+y_pred = ifelse(prob_pred>0.5, 1, 0)
+
+# Making the Confusion Matrix
+cm = table(test_set[,3], y_pred)
+
+# Visualising the Training set results
+library(ElemStatLearn)
+set = training_set
+X1 = seq(min(set[, 1]) - 1, max(set[, 1]) + 1, by = 0.01)
+X2 = seq(min(set[, 2]) - 1, max(set[, 2]) + 1, by = 0.01)
+grid_set = expand.grid(X1, X2)
+colnames(grid_set) = c('Age', 'EstimatedSalary')
+y_grid = predict(classifier, newdata = grid_set)
+plot(set[, -3],
+     main = 'Kernel SVM (Training set)',
+     xlab = 'Age', ylab = 'Estimated Salary',
+     xlim = range(X1), ylim = range(X2))
+contour(X1, X2, matrix(as.numeric(y_grid), length(X1), length(X2)), add = TRUE)
+points(grid_set, pch = '.', col = ifelse(y_grid == 1, 'springgreen3', 'tomato'))
+points(set, pch = 21, bg = ifelse(set[, 3] == 1, 'green4', 'red3'))
+
+# Visualising the Test set results
+library(ElemStatLearn)
+set = test_set
+X1 = seq(min(set[, 1]) - 1, max(set[, 1]) + 1, by = 0.01)
+X2 = seq(min(set[, 2]) - 1, max(set[, 2]) + 1, by = 0.01)
+grid_set = expand.grid(X1, X2)
+colnames(grid_set) = c('Age', 'EstimatedSalary')
+y_grid = predict(classifier, newdata = grid_set)
+plot(set[, -3], main = 'Kernel SVM (Test set)',
+     xlab = 'Age', ylab = 'Estimated Salary',
+     xlim = range(X1), ylim = range(X2))
+contour(X1, X2, matrix(as.numeric(y_grid), length(X1), length(X2)), add = TRUE)
+points(grid_set, pch = '.', col = ifelse(y_grid == 1, 'springgreen3', 'tomato'))
+points(set, pch = 21, bg = ifelse(set[, 3] == 1, 'green4', 'red3'))
+```
+
+
+## Bayes Naive Classifier
+
+```{r}
+dataset = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 3 - Classification/Section 16 - Support Vector Machine (SVM)/Social_Network_Ads.csv')
+dataset = dataset[,3:5]
+
+library(caTools)
+set.seed(123)
+split = sample.split(dataset$Purchased,SplitRatio = 0.75)
+training_set = subset(dataset,split == TRUE) 
+test_set = subset(dataset,split == FALSE)
+
+# SCALING 
+training_set[,1:2] = scale(training_set[,1:2])
+test_set[,1:2] = scale(test_set[,1:2])
+
+# FITTING THE CLASSIFICATION MODEL TO THE DATASET
+library(e1071)
+classifier = svm(formula = Purchased ~ .,
+                data = training_set,
+                kernel= 'linear')
+
+# PREDICTING A NEW RESULT
+prob_pred = predict(classifier, type = 'response', newdata = test_set[-3])
+y_pred = ifelse(prob_pred>0.5, 1, 0)
+
+# Making the Confusion Matrix
+cm = table(test_set[,3], y_pred)
+
+#  Visualising the Test set results
+library(ElemStatLearn)
+set = test_set
+X1 = seq(min(set[, 1]) - 1, max(set[, 1]) + 1, by = 0.01)
+X2 = seq(min(set[, 2]) - 1, max(set[, 2]) + 1, by = 0.01)
+grid_set = expand.grid(X1, X2) # like meshgrid
+colnames(grid_set) = c('Age', 'EstimatedSalary')
+prob_set = predict(classifier, type = 'response', newdata = grid_set)
+y_grid = ifelse(prob_set > 0.5, 1, 0)
+plot(set[, -3],
+     main = 'SVM (Test set)',
+     xlab = 'Age', ylab = 'Estimated Salary',
+     xlim = range(X1), ylim = range(X2))
+contour(X1, X2, matrix(as.numeric(y_grid), length(X1), length(X2)), add = TRUE)
+points(grid_set, pch = '.', col = ifelse(y_grid == 1, 'springgreen3', 'tomato'))
+points(set, pch = 21, bg = ifelse(set[, 3] == 1, 'green4', 'red3'))
+```
+
+
+## Kernel Classifier
+
+```{r}
+dataset = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 3 - Classification/Section 14 - Logistic Regression/Social_Network_Ads.csv')
+dataset = dataset[,3:5]
+
+# Encoding the Target Feature as factor
+dataset$Purchased = factor(dataset$Purchased, levels = c(0,1))
+
+library(caTools)
+set.seed(123)
+split = sample.split(dataset$Purchased,SplitRatio = 0.75)
+training_set = subset(dataset,split == TRUE) 
+test_set = subset(dataset,split == FALSE)
+
+# SCALING 
+training_set[,1:2] = scale(training_set[,1:2])
+test_set[,1:2] = scale(test_set[,1:2])
+
+# FITTING THE CLASSIFICATION BAYES MODEL TO THE DATASET
+library(e1071)
+classifier = naiveBayes(x = training_set[-3],
+                        y = training_set$Purchased)
+
+# PREDICTING A NEW RESULT
+y_pred = predict(classifier, newdata = test_set[-3])
+
+# Making the Confusion Matrix
+cm = table(test_set[,3], y_pred)
+
+# Visualising the Training set results
+library(ElemStatLearn)
+set = training_set
+X1 = seq(min(set[, 1]) - 1, max(set[, 1]) + 1, by = 0.01)
+X2 = seq(min(set[, 2]) - 1, max(set[, 2]) + 1, by = 0.01)
+grid_set = expand.grid(X1, X2)
+colnames(grid_set) = c('Age', 'EstimatedSalary')
+y_grid = predict(classifier, newdata = grid_set)
+plot(set[, -3],
+     main = 'Naive Bayes (Training set)',
+     xlab = 'Age', ylab = 'Estimated Salary',
+     xlim = range(X1), ylim = range(X2))
+contour(X1, X2, matrix(as.numeric(y_grid), length(X1), length(X2)), add = TRUE)
+points(grid_set, pch = '.', col = ifelse(y_grid == 1, 'springgreen3', 'tomato'))
+points(set, pch = 21, bg = ifelse(set[, 3] == 1, 'green4', 'red3'))
+
+# Visualising the Test set results
+library(ElemStatLearn)
+set = test_set
+X1 = seq(min(set[, 1]) - 1, max(set[, 1]) + 1, by = 0.01)
+X2 = seq(min(set[, 2]) - 1, max(set[, 2]) + 1, by = 0.01)
+grid_set = expand.grid(X1, X2)
+colnames(grid_set) = c('Age', 'EstimatedSalary')
+y_grid = predict(classifier, newdata = grid_set)
+plot(set[, -3], main = 'Naive Bayes (Test set)',
+     xlab = 'Age', ylab = 'Estimated Salary',
+     xlim = range(X1), ylim = range(X2))
+contour(X1, X2, matrix(as.numeric(y_grid), length(X1), length(X2)), add = TRUE)
+points(grid_set, pch = '.', col = ifelse(y_grid == 1, 'springgreen3', 'tomato'))
+points(set, pch = 21, bg = ifelse(set[, 3] == 1, 'green4', 'red3'))
+```
+
+
+
+## Decision Tree Classifier
+
+```{r}
+# Importing the dataset
+dataset = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 3 - Classification/Section 19 - Decision Tree Classification/Social_Network_Ads.csv')
+dataset = dataset[3:5]
+
+# Encoding the target feature as factor
+dataset$Purchased = factor(dataset$Purchased, levels = c(0, 1))
+
+# Splitting the dataset into the Training set and Test set
+# install.packages('caTools')
+library(caTools)
+set.seed(123)
+split = sample.split(dataset$Purchased, SplitRatio = 0.75)
+training_set = subset(dataset, split == TRUE)
+test_set = subset(dataset, split == FALSE)
+
+# Feature Scaling
+training_set[-3] = scale(training_set[-3])
+test_set[-3] = scale(test_set[-3])
+
+# Fitting Decision Tree Classification to the Training set
+# install.packages('rpart')
+library(rpart)
+classifier = rpart(formula = Purchased ~ .,
+                   data = training_set)
+
+# Predicting the Test set results
+y_pred = predict(classifier, newdata = test_set[-3], type = 'class')
+```
+the ' type = 'class'  ' is for tranform the data of predict (which is probabilities) to binaries 0 and 1. Y_pred is supposed to be a vector of only 0 and 1.
+
+```{r}
+# Making the Confusion Matrix
+cm = table(test_set[, 3], y_pred)
+
+# Visualising the Training set results
+library(ElemStatLearn)
+set = training_set
+X1 = seq(min(set[, 1]) - 1, max(set[, 1]) + 1, by = 0.01)
+X2 = seq(min(set[, 2]) - 1, max(set[, 2]) + 1, by = 0.01)
+grid_set = expand.grid(X1, X2)
+colnames(grid_set) = c('Age', 'EstimatedSalary')
+y_grid = predict(classifier, newdata = grid_set, type = 'class')
+plot(set[, -3],
+     main = 'Decision Tree Classification (Training set)',
+     xlab = 'Age', ylab = 'Estimated Salary',
+     xlim = range(X1), ylim = range(X2))
+contour(X1, X2, matrix(as.numeric(y_grid), length(X1), length(X2)), add = TRUE)
+points(grid_set, pch = '.', col = ifelse(y_grid == 1, 'springgreen3', 'tomato'))
+points(set, pch = 21, bg = ifelse(set[, 3] == 1, 'green4', 'red3'))
+
+# Visualising the Test set results
+library(ElemStatLearn)
+set = test_set
+X1 = seq(min(set[, 1]) - 1, max(set[, 1]) + 1, by = 0.01)
+X2 = seq(min(set[, 2]) - 1, max(set[, 2]) + 1, by = 0.01)
+grid_set = expand.grid(X1, X2)
+colnames(grid_set) = c('Age', 'EstimatedSalary')
+y_grid = predict(classifier, newdata = grid_set, type = 'class')
+plot(set[, -3], main = 'Decision Tree Classification (Test set)',
+     xlab = 'Age', ylab = 'Estimated Salary',
+     xlim = range(X1), ylim = range(X2))
+contour(X1, X2, matrix(as.numeric(y_grid), length(X1), length(X2)), add = TRUE)
+points(grid_set, pch = '.', col = ifelse(y_grid == 1, 'springgreen3', 'tomato'))
+points(set, pch = 21, bg = ifelse(set[, 3] == 1, 'green4', 'red3'))
+```
+
+Here, we are doing to plot the tree, for that, we have to not scale the data, so we are removing the feature scaling :
+```{r}
+# Importing the dataset
+dataset = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 3 - Classification/Section 19 - Decision Tree Classification/Social_Network_Ads.csv')
+dataset = dataset[3:5]
+
+# Encoding the target feature as factor
+dataset$Purchased = factor(dataset$Purchased, levels = c(0, 1))
+
+# Splitting the dataset into the Training set and Test set
+# install.packages('caTools')
+library(caTools)
+set.seed(123)
+split = sample.split(dataset$Purchased, SplitRatio = 0.75)
+training_set = subset(dataset, split == TRUE)
+test_set = subset(dataset, split == FALSE)
+
+# Feature Scaling
+# training_set[-3] = scale(training_set[-3])
+# test_set[-3] = scale(test_set[-3])
+
+# no Feature Scaling for printing the Decision tree
+
+# Fitting Decision Tree Classification to the Training set
+# install.packages('rpart')
+library(rpart)
+classifier = rpart(formula = Purchased ~ .,
+                   data = training_set)
+
+# Predicting the Test set results
+y_pred = predict(classifier, newdata = test_set[-3], type = 'class')
+
+# Fitting Decision Tree Classification to the Training set
+# install.packages('rpart')
+library(rpart)
+classifier = rpart(formula = Purchased ~ .,
+                   data = training_set)
+
+# Predicting the Test set results
+y_pred = predict(classifier, newdata = test_set[-3], type = 'class')
+
+# Making the Confusion Matrix
+cm = table(test_set[, 3], y_pred)
+
+# Plotting the tree
+plot(classifier)
+text(classifier)
+```
+
+
+
+## Random Forest Classifier
+
+```{r}
+dataset = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 3 - Classification/Section 20 - Random Forest Classification/Social_Network_Ads.csv')
+dataset = dataset[,3:5]
+
+# Encoding the Target Feature as factor
+dataset$Purchased = factor(dataset$Purchased, levels = c(0,1))
+
+library(caTools)
+set.seed(123)
+split = sample.split(dataset$Purchased,SplitRatio = 0.75)
+training_set = subset(dataset,split == TRUE) 
+test_set = subset(dataset,split == FALSE)
+
+# SCALING 
+training_set[,1:2] = scale(training_set[,1:2])
+test_set[,1:2] = scale(test_set[,1:2])
+
+# FITTING THE RANDOM FOREST CLASSIFIER MODEL TO THE DATASET
+# install.packages('randomForest')
+library(randomForest)
+classifier = randomForest(x = training_set[-3],
+                        y = training_set$Purchased,
+                        ntree = 5)
+
+# PREDICTING A NEW RESULT
+y_pred = predict(classifier, newdata = test_set[-3])
+
+# Making the Confusion Matrix
+cm = table(test_set[,3], y_pred)
+
+# Visualising the Training set results
+library(ElemStatLearn)
+set = training_set
+X1 = seq(min(set[, 1]) - 1, max(set[, 1]) + 1, by = 0.01)
+X2 = seq(min(set[, 2]) - 1, max(set[, 2]) + 1, by = 0.01)
+grid_set = expand.grid(X1, X2)
+colnames(grid_set) = c('Age', 'EstimatedSalary')
+y_grid = predict(classifier, newdata = grid_set)
+plot(set[, -3],
+     main = 'Random Forest Classifier (Training set)',
+     xlab = 'Age', ylab = 'Estimated Salary',
+     xlim = range(X1), ylim = range(X2))
+contour(X1, X2, matrix(as.numeric(y_grid), length(X1), length(X2)), add = TRUE)
+points(grid_set, pch = '.', col = ifelse(y_grid == 1, 'springgreen3', 'tomato'))
+points(set, pch = 21, bg = ifelse(set[, 3] == 1, 'green4', 'red3'))
+
+# Visualising the Test set results
+library(ElemStatLearn)
+set = test_set
+X1 = seq(min(set[, 1]) - 1, max(set[, 1]) + 1, by = 0.01)
+X2 = seq(min(set[, 2]) - 1, max(set[, 2]) + 1, by = 0.01)
+grid_set = expand.grid(X1, X2)
+colnames(grid_set) = c('Age', 'EstimatedSalary')
+y_grid = predict(classifier, newdata = grid_set)
+plot(set[, -3], main = 'Random Forest Classifier (Test set)',
+     xlab = 'Age', ylab = 'Estimated Salary',
+     xlim = range(X1), ylim = range(X2))
+contour(X1, X2, matrix(as.numeric(y_grid), length(X1), length(X2)), add = TRUE)
+points(grid_set, pch = '.', col = ifelse(y_grid == 1, 'springgreen3', 'tomato'))
+points(set, pch = 21, bg = ifelse(set[, 3] == 1, 'green4', 'red3'))
+```
+
+
+# Cluster
+
+## KMeans Clusturing
+
+Let's import the dataset and use the elbow method to know the optimal number of clusters
+```{r}
+# importing the mall dataset
+dataset <- read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 4 - Clustering/Section 24 - K-Means Clustering/Mall_Customers.csv')
+
+X <- dataset[4:5]
+
+# using the elbow method to find the optimal number of clusters
+set.seed(6)
+wcss <- vector()
+for (i in 1:10) wcss[i] <- sum(kmeans(X,i)$withinss)
+plot(1:10, wcss, type = 'b', main = paste('Clusters of clients'), xlab = 'numberof clusters', ylab = 'WCSS')
+```
+
+Then, let's show the clustured dataset witht he good number of cluster (5 here):
+
+```{r}
+# Applying k-means to the mall dataset
+set.seed(29)
+KM <- kmeans(X,5, iter.max = 300, nstart = 10)
+
+# Visualizing the results
+library(cluster)
+clusplot(X,
+         KM$cluster,
+         lines = 0,
+         shade = TRUE,
+         color = TRUE,
+         labels = 2,
+         plotchar = FALSE,
+         span = TRUE,
+         main = paste('Culasters of clients'),
+         xlab = 'annual income',
+         ylab = 'spending score')
+
+```
+
+## Hierarchical Clustering
+
+Let's import the dataset and use the dendogram to know the optimal number of clusters
+```{r}
+# importing the mall dataset
+dataset <- read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 4 - Clustering/Section 25 - Hierarchical Clustering/Mall_Customers.csv')
+
+X <- dataset[4:5]
+
+# Using the dendogram to find the optimal number of clusturs
+dendogram = hclust(dist(X,method = 'euclidean'), method = 'ward.D')
+plot(dendogram,
+     main = paste('Dendrogram'),
+     xlab = 'Customers',
+     ylab = 'Euclidean distances')
+```
+
+Then, let's show the clustured dataset witht he good number of cluster (5 here):
+
+```{r}
+# Fitting the hierarchical clustering to the mall dataset
+
+HC = hclust(dist(X,method = 'euclidean'), method = 'ward.D')
+y_hc = cutree(HC, 5)
+
+# Visualising the clusters
+# Visualizing the results
+library(cluster)
+clusplot(X,
+         y_hc,
+         lines = 0,
+         shade = TRUE,
+         color = TRUE,
+         labels = 2,
+         plotchar = FALSE,
+         span = TRUE,
+         main = paste('Culasters of clients'),
+         xlab = 'annual income',
+         ylab = 'spending score')
+```
+
+# Aqqociation Rule Learning
+
+## Apriori
+
+rm.duplicates is to remove the duplicates in the same line. The method read.transactions is for tranfoming the tables with line data to column with 1 and 0.
+
+```{r}
+# install.packages('arules')
+library(arules)
+dataset = read.transactions('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 5 - Association Rule Learning/Section 28 - Apriori/Market_Basket_Optimisation.csv', sep = ',', rm.duplicates = TRUE)
+summary(dataset)
+```
+A plot to see the dataset summed :
+
+```{r}
+itemFrequencyPlot(dataset, topN = 10 )
+```
+
+Let's train an Apriori model on the dataset : 
+
+```{r}
+# Train
+rules = apriori(data = dataset, parameter = list(support = 0.004, confidence = 0.2))
+
+# Visualising the results
+inspect(sort(rules, by = 'lift')[1:10])
+```
+
+
+## Eclat Model
+This is a simplyfied apriori method. It's a simple algorithm, just to have an insight.
+
+```{r}
+# install.packages('arules')
+library(arules)
+dataset = read.transactions('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 5 - Association Rule Learning/Section 29 - Eclat/Market_Basket_Optimisation.csv', sep = ',', rm.duplicates = TRUE)
+summary(dataset)
+
+itemFrequencyPlot(dataset, topN = 10 )
+
+#Training
+rules = eclat(data = dataset, parameter = list(support = 0.004, minlen = 2))
+
+# Visualising the results
+inspect(sort(rules, by = 'support')[1:10])
+```
+
+# Reinforcement Learning
+
+## Upper Confidence Bound
+
+```{r}
+# Importing the dataset
+dataset = read.csv('/Users/quentin/Documents/AI/UDEMY_ML/Machine Learning A-Z Template Folder/Part 6 - Reinforcement Learning/Section 32 - Upper Confidence Bound (UCB)/Ads_CTR_Optimisation.csv')
+
+# Implementing UCB
+N = 10000
+d = 10
+ads_selected = integer(0)
+numbers_of_selections = integer(d)
+sums_of_rewards = integer(d)
+total_reward = 0
+for (n in 1:N) {
+  ad = 0
+  max_upper_bound = 0
+  for (i in 1:d) {
+    if (numbers_of_selections[i] > 0) {
+      average_reward = sums_of_rewards[i] / numbers_of_selections[i]
+      delta_i = sqrt(3/2 * log(n) / numbers_of_selections[i])
+      upper_bound = average_reward + delta_i
+    } else {
+        upper_bound = 1e400
+    }
+    if (upper_bound > max_upper_bound) {
+      max_upper_bound = upper_bound
+      ad = i
+    }
+  }
+  ads_selected = append(ads_selected, ad)
+  numbers_of_selections[ad] = numbers_of_selections[ad] + 1
+  reward = dataset[n, ad]
+  sums_of_rewards[ad] = sums_of_rewards[ad] + reward
+  total_reward = total_reward + reward
+}
+
+# Visualising the results
+hist(ads_selected,
+     col = 'blue',
+     main = 'Histogram of ads selections',
+     xlab = 'Ads',
+     ylab = 'Number of times each ad was selected')
+```
+
+
+
+
+
